@@ -31,16 +31,29 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // Phase 5: ganti dengan AuthProvider.login()
+  // ─── Phase 3 Dummy Accounts (hapus di Phase 5) ───────────────────────────
+  // Admin: admin@plantify.local
+  // User : semua email selain akun admin di atas
+  static const _dummyAdminEmail = 'admin@plantify.local';
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Phase 5: ganti seluruh method ini dengan AuthProvider.login()
   void _onLogin() {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // Simulasi Phase 2: navigasi ke dashboard setelah delay singkat
     Future.delayed(const Duration(milliseconds: 800), () {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      Navigator.pushReplacementNamed(context, RouteConstants.dashboard);
+
+      // Simulasi Phase 3: role-based redirect berdasarkan email dummy.
+      // Phase 5: logika ini diganti dengan AuthProvider.login() + SQLite.
+      final isAdmin = _emailController.text.trim() == _dummyAdminEmail;
+      if (isAdmin) {
+        Navigator.pushReplacementNamed(context, RouteConstants.adminDashboard);
+      } else {
+        Navigator.pushReplacementNamed(context, RouteConstants.dashboard);
+      }
     });
   }
 
