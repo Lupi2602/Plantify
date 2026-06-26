@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:plantify_pnp/core/theme/app_colors.dart';
 import 'package:plantify_pnp/core/theme/app_typography.dart';
+import 'package:plantify_pnp/features/auth/providers/auth_provider.dart';
 import 'package:plantify_pnp/shared/widgets/app_button.dart';
 import 'package:plantify_pnp/shared/widgets/app_text_field.dart';
 import 'package:plantify_pnp/shared/widgets/error_state_widget.dart';
@@ -8,10 +10,7 @@ import 'package:plantify_pnp/shared/widgets/error_state_widget.dart';
 /// Halaman edit profil pengguna.
 ///
 /// Scope: User hanya dapat mengubah Nama Lengkap.
-/// Email dan Password tidak dapat diubah di fase awal ini.
-///
-/// Phase 5: data disimpan ke tabel users via AuthProvider.
-/// Phase 2: dummy update + snackbar konfirmasi.
+/// Data disimpan ke tabel users via [AuthProvider].
 ///
 /// Referensi: UI_GUIDELINE.md — Edit Profile Scope, DATABASE_SPEC.md — users table
 class EditProfileScreen extends StatefulWidget {
@@ -23,33 +22,47 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _namaController;
+  late TextEditingController _namaController;
+  late TextEditingController _emailController;
   bool _isLoading = false;
 
-  // Phase 5: inisialisasi dari AuthProvider (data session user)
   @override
   void initState() {
     super.initState();
-    _namaController = TextEditingController(text: 'Budi Santoso');
+    final user = context.read<AuthProvider>().currentUser;
+    _namaController = TextEditingController(text: user?.nama ?? '');
+    _emailController = TextEditingController(text: user?.email ?? '');
   }
 
   @override
   void dispose() {
     _namaController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
-  void _onSave() {
+  void _onSave() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // Phase 5: ganti dengan AuthProvider.updateName()
-    Future.delayed(const Duration(milliseconds: 600), () {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.updateName(_namaController.text);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (success) {
       ErrorStateWidget.showSuccess(context, 'Profil berhasil diperbarui');
       Navigator.pop(context);
-    });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.errorMessage ?? 'Gagal memperbarui profil'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
@@ -99,8 +112,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               // ── Email (Read-only) ─────────────────────────────────────
               AppTextField(
                 label: 'Email',
-                hint: 'budi@example.com',
-                controller: TextEditingController(text: 'budi@example.com'),
+                hint: _emailController.text,
+                controller: _emailController,
                 prefixIcon: Icons.email_outlined,
                 readOnly: true,
               ),

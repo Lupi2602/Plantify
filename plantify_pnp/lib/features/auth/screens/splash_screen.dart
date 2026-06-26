@@ -1,17 +1,15 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:plantify_pnp/core/constants/app_constants.dart';
 import 'package:plantify_pnp/core/constants/route_constants.dart';
 import 'package:plantify_pnp/core/theme/app_colors.dart';
 import 'package:plantify_pnp/core/theme/app_typography.dart';
+import 'package:plantify_pnp/features/auth/providers/auth_provider.dart';
 
 /// Halaman pertama yang ditampilkan saat aplikasi dibuka.
 ///
 /// Menampilkan logo, nama, dan tagline aplikasi selama [AppConstants.splashDurationSeconds]
-/// kemudian menavigasi ke LoginScreen.
-///
-/// Phase 5: logika ini akan diganti dengan pengecekan session (SharedPreferences)
-/// dan validasi status user di SQLite.
+/// kemudian menavigasi ke screen tujuan berdasarkan sesi aktif di SQLite & SharedPreferences.
 ///
 /// Referensi: UI_GUIDELINE.md — Splash Screen, FLUTTER_ARCHITECTURE.md — Session Validation
 class SplashScreen extends StatefulWidget {
@@ -45,17 +43,37 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animController.forward();
 
-    // Phase 5: ganti dengan SessionService.checkSession()
-    Timer(
-      Duration(seconds: AppConstants.splashDurationSeconds),
-      _navigate,
-    );
+    _initSplash();
   }
 
-  void _navigate() {
+  void _initSplash() async {
+    final authProvider = context.read<AuthProvider>();
+    final results = await Future.wait([
+      authProvider.checkSession(),
+      Future.delayed(Duration(seconds: AppConstants.splashDurationSeconds)),
+    ]);
+
     if (!mounted) return;
-    // Phase 5: navigasi berdasarkan hasil cek session dan role
-    Navigator.pushReplacementNamed(context, RouteConstants.login);
+
+    final isLoggedIn = results[0] as bool;
+    if (!isLoggedIn) {
+      if (authProvider.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(authProvider.errorMessage!),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+      Navigator.pushReplacementNamed(context, RouteConstants.login);
+    } else {
+      final role = authProvider.currentUser?.role;
+      if (role == 'admin') {
+        Navigator.pushReplacementNamed(context, RouteConstants.adminDashboard);
+      } else {
+        Navigator.pushReplacementNamed(context, RouteConstants.dashboard);
+      }
+    }
   }
 
   @override

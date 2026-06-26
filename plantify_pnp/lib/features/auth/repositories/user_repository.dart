@@ -1,3 +1,4 @@
+import 'package:plantify_pnp/core/constants/database_constants.dart';
 import 'package:plantify_pnp/core/database/database_helper.dart';
 import 'package:plantify_pnp/features/auth/models/user_model.dart';
 
@@ -23,15 +24,32 @@ class UserRepository {
   /// Mencari user berdasarkan email (case-insensitive).
   /// Digunakan oleh login dan session validation.
   /// Phase 5: implementasi.
-  Future<UserModel?> findByEmail(String email) {
-    throw UnimplementedError('findByEmail — diimplementasikan di Phase 5');
+  Future<UserModel?> findByEmail(String email) async {
+    final db = await _dbHelper.database;
+    final cleanEmail = email.trim().toLowerCase();
+    final maps = await db.query(
+      DatabaseConstants.tableUsers,
+      where: '${DatabaseConstants.colEmail} = ?',
+      whereArgs: [cleanEmail],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return UserModel.fromMap(maps.first);
   }
 
   /// Mencari user berdasarkan id.
   /// Digunakan oleh session validation saat startup.
   /// Phase 5: implementasi.
-  Future<UserModel?> findById(int id) {
-    throw UnimplementedError('findById — diimplementasikan di Phase 5');
+  Future<UserModel?> findById(int id) async {
+    final db = await _dbHelper.database;
+    final maps = await db.query(
+      DatabaseConstants.tableUsers,
+      where: '${DatabaseConstants.colId} = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return UserModel.fromMap(maps.first);
   }
 
   /// Mengambil seluruh user.
@@ -46,15 +64,25 @@ class UserRepository {
   /// Menyisipkan user baru ke tabel [users].
   /// Digunakan oleh register.
   /// Phase 5: implementasi.
-  Future<int> insert(UserModel user) {
-    throw UnimplementedError('insert — diimplementasikan di Phase 5');
+  Future<int> insert(UserModel user) async {
+    final db = await _dbHelper.database;
+    return db.insert(DatabaseConstants.tableUsers, user.toMap());
   }
 
   /// Memperbarui nama pengguna.
   /// Digunakan oleh Edit Profile.
   /// Phase 5: implementasi.
-  Future<int> updateNama(int id, String nama) {
-    throw UnimplementedError('updateNama — diimplementasikan di Phase 5');
+  Future<int> updateNama(int id, String nama) async {
+    final db = await _dbHelper.database;
+    return db.update(
+      DatabaseConstants.tableUsers,
+      {
+        DatabaseConstants.colNama: nama,
+        DatabaseConstants.colUpdatedAt: DatabaseHelper.currentTimestamp(),
+      },
+      where: '${DatabaseConstants.colId} = ?',
+      whereArgs: [id],
+    );
   }
 
   /// Memperbarui status akun (1 = aktif, 0 = nonaktif).
@@ -67,6 +95,5 @@ class UserRepository {
   // ─── Internal Helper ───────────────────────────────────────────────────────
 
   /// Referensi ke DatabaseHelper untuk digunakan saat implementasi.
-  // ignore: unused_field
   DatabaseHelper get dbHelper => _dbHelper;
 }

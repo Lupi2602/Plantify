@@ -1,34 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:plantify_pnp/core/constants/route_constants.dart';
 import 'package:plantify_pnp/core/theme/app_colors.dart';
 import 'package:plantify_pnp/core/theme/app_typography.dart';
+import 'package:plantify_pnp/features/auth/providers/auth_provider.dart';
 import 'package:plantify_pnp/shared/widgets/app_button.dart';
 
 /// Halaman profil pengguna.
 ///
 /// Menampilkan: avatar placeholder, nama, email, role.
-/// Actions: Edit Profil → EditProfileScreen, Logout → LoginScreen.
-///
-/// Yang TIDAK diimplementasikan (tidak ada di use case/DATABASE_SPEC):
-/// - Foto avatar real (tidak ada kolom foto di tabel users)
-/// - Total Scan / Favorit / Bergabung (tidak ada di DATABASE_SPEC)
-/// - Menu Pengaturan, Bantuan, Tentang Aplikasi
-///
-/// Phase 5: data dari AuthProvider via SharedPreferences + SQLite query.
-/// Phase 2: dummy data.
+/// Actions: Edit Profil → EditProfileScreen, Logout → LoginScreen via [AuthProvider].
 ///
 /// Referensi: UI_GUIDELINE.md — Profile Screen, DATABASE_SPEC.md — users table
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
-  // ─── Phase 2 Dummy Data ────────────────────────────────────────────────────
-  static const _dummyName = 'Budi Santoso';
-  static const _dummyEmail = 'budi@example.com';
-  static const _dummyRole = 'user'; // 'user' atau 'admin'
-  // ─────────────────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final userName = user?.nama ?? 'Pengguna';
+    final userEmail = user?.email ?? '';
+    final userRole = user?.role ?? 'user';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -38,7 +31,6 @@ class ProfileScreen extends StatelessWidget {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ── Profile Header ───────────────────────────────────────────
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 32, 20, 32),
@@ -50,7 +42,6 @@ class ProfileScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  // Avatar
                   CircleAvatar(
                     radius: 44,
                     backgroundColor: AppColors.primaryLight.withAlpha(40),
@@ -61,22 +52,16 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // Name
                   Text(
-                    _dummyName,
+                    userName,
                     style: AppTypography.headingMedium.copyWith(fontSize: 20),
                   ),
                   const SizedBox(height: 4),
-
-                  // Email
                   Text(
-                    _dummyEmail,
+                    userEmail,
                     style: AppTypography.caption,
                   ),
                   const SizedBox(height: 12),
-
-                  // Role Badge
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 4),
@@ -87,7 +72,7 @@ class ProfileScreen extends StatelessWidget {
                           color: AppColors.primary.withAlpha(60)),
                     ),
                     child: Text(
-                      _dummyRole == 'admin' ? 'Admin' : 'Pengguna',
+                      userRole == 'admin' ? 'Admin' : 'Pengguna',
                       style: AppTypography.caption.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
@@ -97,15 +82,11 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
             ),
-
-            // ── Menu Items ───────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
                   const SizedBox(height: 8),
-
-                  // Edit Profil
                   _ProfileMenuItem(
                     icon: Icons.edit_outlined,
                     label: 'Edit Profil',
@@ -115,10 +96,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const Divider(height: 1, color: AppColors.divider),
-
                   const SizedBox(height: 32),
-
-                  // Logout Button
                   AppButton(
                     label: 'Keluar',
                     onPressed: () => _onLogout(context),
@@ -155,9 +133,11 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
-    ).then((confirmed) {
+    ).then((confirmed) async {
       if (confirmed == true && context.mounted) {
-        // Phase 5: ganti dengan AuthProvider.logout() + clear SharedPreferences
+        final authProvider = context.read<AuthProvider>();
+        await authProvider.logout();
+        if (!context.mounted) return;
         Navigator.pushNamedAndRemoveUntil(
           context,
           RouteConstants.login,

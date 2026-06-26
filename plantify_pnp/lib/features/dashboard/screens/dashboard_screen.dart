@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:plantify_pnp/core/constants/route_constants.dart';
 import 'package:plantify_pnp/core/theme/app_colors.dart';
 import 'package:plantify_pnp/core/theme/app_typography.dart';
+import 'package:plantify_pnp/features/auth/providers/auth_provider.dart';
 import 'package:plantify_pnp/features/dashboard/widgets/plant_recommendation_card.dart';
 import 'package:plantify_pnp/features/dashboard/widgets/quick_scan_card.dart';
 import 'package:plantify_pnp/features/dashboard/widgets/recent_scan_card.dart';
@@ -70,6 +72,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userName = context.watch<AuthProvider>().currentUser?.nama ?? 'Pengguna';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -89,9 +93,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     _getGreeting(),
                     style: AppTypography.caption.copyWith(fontSize: 12),
                   ),
-                  // Phase 5: ganti 'Pengguna' dengan nama user dari session
                   Text(
-                    'Pengguna 👋',
+                    '$userName 👋',
                     style: AppTypography.headingMedium.copyWith(
                       color: AppColors.textPrimary,
                     ),
@@ -101,13 +104,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
               actions: [
                 Padding(
                   padding: const EdgeInsets.only(right: 16),
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: AppColors.surfaceVariant,
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: AppColors.primary,
-                      size: 20,
+                  child: GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, RouteConstants.profile),
+                    child: CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppColors.surfaceVariant,
+                      child: const Icon(
+                        Icons.person_rounded,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ),

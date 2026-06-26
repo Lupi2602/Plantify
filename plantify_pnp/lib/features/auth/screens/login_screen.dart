@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:plantify_pnp/core/constants/route_constants.dart';
 import 'package:plantify_pnp/core/theme/app_colors.dart';
 import 'package:plantify_pnp/core/theme/app_typography.dart';
+import 'package:plantify_pnp/features/auth/providers/auth_provider.dart';
 import 'package:plantify_pnp/shared/widgets/app_button.dart';
 import 'package:plantify_pnp/shared/widgets/app_text_field.dart';
 
 /// Halaman login untuk User dan Admin.
 ///
 /// Field: Email, Password
-/// Action: Login → (Phase 5) validasi ke SQLite, cek role, cek status akun
+/// Action: Login → validasi ke SQLite melalui [AuthProvider], simpan sesi, cek role
 ///
 /// Referensi: UI_GUIDELINE.md — Login Screen, DATABASE_SPEC.md — users table
 class LoginScreen extends StatefulWidget {
@@ -20,9 +22,16 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  late TextEditingController _emailController;
+  late TextEditingController _passwordController;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
+  }
 
   @override
   void dispose() {
@@ -31,30 +40,35 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // ─── Phase 3 Dummy Accounts (hapus di Phase 5) ───────────────────────────
-  // Admin: admin@plantify.local
-  // User : semua email selain akun admin di atas
-  static const _dummyAdminEmail = 'admin@plantify.local';
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // Phase 5: ganti seluruh method ini dengan AuthProvider.login()
-  void _onLogin() {
+  void _onLogin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.login(
+      _emailController.text,
+      _passwordController.text,
+    );
 
-      // Simulasi Phase 3: role-based redirect berdasarkan email dummy.
-      // Phase 5: logika ini diganti dengan AuthProvider.login() + SQLite.
-      final isAdmin = _emailController.text.trim() == _dummyAdminEmail;
-      if (isAdmin) {
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (success) {
+      final role = authProvider.currentUser?.role;
+      if (role == 'admin') {
         Navigator.pushReplacementNamed(context, RouteConstants.adminDashboard);
       } else {
         Navigator.pushReplacementNamed(context, RouteConstants.dashboard);
       }
-    });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.errorMessage ?? 'Gagal masuk'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override

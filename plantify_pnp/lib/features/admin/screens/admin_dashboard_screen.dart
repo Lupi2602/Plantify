@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:plantify_pnp/core/constants/route_constants.dart';
 import 'package:plantify_pnp/core/theme/app_colors.dart';
 import 'package:plantify_pnp/core/theme/app_typography.dart';
 import 'package:plantify_pnp/features/admin/widgets/admin_menu_card.dart';
 import 'package:plantify_pnp/features/admin/widgets/admin_summary_card.dart';
+import 'package:plantify_pnp/features/auth/providers/auth_provider.dart';
 
 /// Dashboard utama untuk Admin.
 ///
@@ -11,17 +13,12 @@ import 'package:plantify_pnp/features/admin/widgets/admin_summary_card.dart';
 /// Admin navigasi menggunakan AppBar dan menu cards.
 ///
 /// Summary Cards: Total Tanaman, Total User, Total Scan.
-/// (Tidak termasuk "Scan Hari Ini" / "Tanaman Baru" — tidak ada di DATABASE_SPEC)
-///
-/// Phase 7: data dari AdminProvider via query SQLite.
-/// Phase 2: dummy data.
 ///
 /// Referensi: UI_GUIDELINE.md — Admin Dashboard, DATABASE_SPEC.md
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
   // ─── Phase 2 Dummy Data ────────────────────────────────────────────────────
-  static const _dummyAdminName = 'Admin';
   static const _dummyTotalPlants = '24';
   static const _dummyTotalUsers = '152';
   static const _dummyTotalScans = '1.240';
@@ -29,13 +26,14 @@ class AdminDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final adminName = context.watch<AuthProvider>().currentUser?.nama ?? 'Admin';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Dashboard Admin'),
         automaticallyImplyLeading: false,
         actions: [
-          // Logout shortcut
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             onPressed: () => _onLogout(context),
@@ -64,7 +62,7 @@ class AdminDashboardScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Selamat Datang, $_dummyAdminName',
+                    'Selamat Datang, $adminName',
                     style: AppTypography.headingMedium.copyWith(
                       color: Colors.white,
                     ),
@@ -93,7 +91,7 @@ class AdminDashboardScreen extends StatelessWidget {
                   child: AdminSummaryCard(
                     icon: Icons.eco_rounded,
                     label: 'Total Tanaman',
-                    value: _dummyTotalPlants,
+                    value: AdminDashboardScreen._dummyTotalPlants,
                     iconColor: AppColors.primary,
                   ),
                 ),
@@ -102,7 +100,7 @@ class AdminDashboardScreen extends StatelessWidget {
                   child: AdminSummaryCard(
                     icon: Icons.group_rounded,
                     label: 'Total User',
-                    value: _dummyTotalUsers,
+                    value: AdminDashboardScreen._dummyTotalUsers,
                     iconColor: AppColors.secondary,
                   ),
                 ),
@@ -112,7 +110,7 @@ class AdminDashboardScreen extends StatelessWidget {
             AdminSummaryCard(
               icon: Icons.qr_code_scanner_rounded,
               label: 'Total Scan',
-              value: _dummyTotalScans,
+              value: AdminDashboardScreen._dummyTotalScans,
               iconColor: AppColors.info,
             ),
             const SizedBox(height: 24),
@@ -149,8 +147,10 @@ class AdminDashboardScreen extends StatelessWidget {
     );
   }
 
-  void _onLogout(BuildContext context) {
-    // Phase 5: ganti dengan AuthProvider.logout()
+  void _onLogout(BuildContext context) async {
+    final authProvider = context.read<AuthProvider>();
+    await authProvider.logout();
+    if (!context.mounted) return;
     Navigator.pushNamedAndRemoveUntil(
       context,
       RouteConstants.login,

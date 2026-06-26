@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:plantify_pnp/core/theme/app_colors.dart';
 import 'package:plantify_pnp/core/theme/app_typography.dart';
+import 'package:plantify_pnp/features/auth/providers/auth_provider.dart';
 import 'package:plantify_pnp/shared/widgets/app_button.dart';
 import 'package:plantify_pnp/shared/widgets/app_text_field.dart';
 
 /// Halaman registrasi akun baru.
 ///
 /// Field: Nama Lengkap, Email, Password, Konfirmasi Password
-/// Phase 5: data akan disimpan ke tabel users di SQLite dengan password ter-hash
+/// Data disimpan ke tabel users di SQLite via [AuthProvider].
 ///
 /// Referensi: UI_GUIDELINE.md — Register Screen, DATABASE_SPEC.md — users table
 class RegisterScreen extends StatefulWidget {
@@ -19,11 +21,20 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _namaController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  late TextEditingController _namaController;
+  late TextEditingController _emailController;
+  late TextEditingController _passwordController;
+  late TextEditingController _confirmPasswordController;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _namaController = TextEditingController();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
+    _confirmPasswordController = TextEditingController();
+  }
 
   @override
   void dispose() {
@@ -34,15 +45,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  // Phase 5: ganti dengan AuthProvider.register()
-  void _onRegister() {
+  void _onRegister() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
 
-    // Simulasi Phase 2: kembali ke login setelah delay
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.register(
+      _namaController.text,
+      _emailController.text,
+      _passwordController.text,
+    );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Akun berhasil dibuat! Silakan masuk.'),
@@ -51,7 +68,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
       Navigator.pop(context);
-    });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.errorMessage ?? 'Gagal mendaftar'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   @override
