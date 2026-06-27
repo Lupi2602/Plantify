@@ -1,5 +1,6 @@
 import 'package:plantify_pnp/core/constants/database_constants.dart';
 import 'package:plantify_pnp/core/database/database_helper.dart';
+import 'package:plantify_pnp/core/utils/timestamp_helper.dart';
 import 'package:plantify_pnp/features/auth/models/user_model.dart';
 
 /// Repository untuk operasi database pada tabel [users].
@@ -55,8 +56,14 @@ class UserRepository {
   /// Mengambil seluruh user.
   /// Digunakan oleh Admin User Management.
   /// Phase 7: implementasi.
-  Future<List<UserModel>> getAll() {
-    throw UnimplementedError('getAll — diimplementasikan di Phase 7');
+  Future<List<UserModel>> getAll() async {
+    final db = await _dbHelper.database;
+    final maps = await db.query(
+      DatabaseConstants.tableUsers,
+      orderBy:
+          "CASE WHEN ${DatabaseConstants.colRole} = 'admin' THEN 1 ELSE 2 END ASC, ${DatabaseConstants.colNama} ASC",
+    );
+    return maps.map((m) => UserModel.fromMap(m)).toList();
   }
 
   // ─── Write ─────────────────────────────────────────────────────────────────
@@ -78,7 +85,7 @@ class UserRepository {
       DatabaseConstants.tableUsers,
       {
         DatabaseConstants.colNama: nama,
-        DatabaseConstants.colUpdatedAt: DatabaseHelper.currentTimestamp(),
+        DatabaseConstants.colUpdatedAt: TimestampHelper.currentTimestamp(),
       },
       where: '${DatabaseConstants.colId} = ?',
       whereArgs: [id],
@@ -88,8 +95,17 @@ class UserRepository {
   /// Memperbarui status akun (1 = aktif, 0 = nonaktif).
   /// Digunakan oleh Admin User Management.
   /// Phase 7: implementasi.
-  Future<int> updateStatus(int id, int status) {
-    throw UnimplementedError('updateStatus — diimplementasikan di Phase 7');
+  Future<int> updateStatus(int id, int status) async {
+    final db = await _dbHelper.database;
+    return db.update(
+      DatabaseConstants.tableUsers,
+      {
+        DatabaseConstants.colStatus: status,
+        DatabaseConstants.colUpdatedAt: TimestampHelper.currentTimestamp(),
+      },
+      where: '${DatabaseConstants.colId} = ? AND ${DatabaseConstants.colRole} != ?',
+      whereArgs: [id, 'admin'],
+    );
   }
 
   // ─── Internal Helper ───────────────────────────────────────────────────────

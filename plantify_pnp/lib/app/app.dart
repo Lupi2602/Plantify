@@ -4,7 +4,9 @@ import 'package:plantify_pnp/app/app_router.dart';
 import 'package:plantify_pnp/app/app_theme.dart';
 import 'package:plantify_pnp/core/constants/app_constants.dart';
 import 'package:plantify_pnp/core/constants/route_constants.dart';
+import 'package:plantify_pnp/features/admin/providers/admin_provider.dart';
 import 'package:plantify_pnp/features/auth/providers/auth_provider.dart';
+import 'package:plantify_pnp/features/auth/repositories/user_repository.dart';
 import 'package:plantify_pnp/features/plant/providers/plant_provider.dart';
 import 'package:plantify_pnp/features/plant/repositories/plant_repository.dart';
 import 'package:plantify_pnp/features/plant/services/plant_storage_service.dart';
@@ -37,6 +39,11 @@ class PlantifyApp extends StatelessWidget {
             repository: PlantRepository(),
             storageService: PlantStorageService(),
           )..initialize(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AdminProvider(
+            userRepository: UserRepository(),
+          ),
         ),
       ],
       child: MaterialApp(

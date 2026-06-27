@@ -1,20 +1,25 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:plantify_pnp/core/constants/app_constants.dart';
 import 'package:plantify_pnp/core/theme/app_colors.dart';
+import 'package:plantify_pnp/features/admin/providers/admin_provider.dart';
 import 'package:plantify_pnp/features/admin/widgets/user_list_item.dart';
+import 'package:plantify_pnp/features/auth/models/user_model.dart';
+import 'package:plantify_pnp/features/auth/providers/auth_provider.dart';
 import 'package:plantify_pnp/shared/widgets/empty_state_widget.dart';
 import 'package:plantify_pnp/shared/widgets/error_state_widget.dart';
 
 /// Halaman kelola pengguna untuk Admin.
 ///
-/// Menampilkan daftar seluruh user dengan status dan role.
+/// Menampilkan daftar seluruh user dengan status dan role dari SQLite.
 /// Actions:
-/// - Aktifkan: set is_active = 1 di tabel users
-/// - Nonaktifkan: set is_active = 0 di tabel users
+/// - Aktifkan: set status = 1 di tabel users
+/// - Nonaktifkan: set status = 0 di tabel users
 ///
 /// Admin TIDAK DAPAT menghapus user. (UI_GUIDELINE.md — Admin tidak dapat menghapus user)
-///
-/// Phase 7: data dari AdminProvider via UserRepository.
-/// Phase 2: dummy data.
+/// Menerapkan Self Lock Protection (admin tidak bisa me-nonaktifkan diri sendiri)
+/// dan Admin Shield (akun role admin tidak dapat dinonaktifkan).
 ///
 /// Referensi: UI_GUIDELINE.md — Manage Users Screen, DATABASE_SPEC.md — users table
 class ManageUserScreen extends StatefulWidget {
@@ -26,65 +31,54 @@ class ManageUserScreen extends StatefulWidget {
 
 class _ManageUserScreenState extends State<ManageUserScreen> {
   final _searchController = TextEditingController();
+  Timer? _debounceTimer;
 
-  // ─── Phase 2 Dummy Data ────────────────────────────────────────────────────
-  final List<Map<String, dynamic>> _users = [
-    {
-      'id': 1,
-      'nama': 'Admin Plantify',
-      'email': 'admin@plantify.pnp',
-      'role': 'admin',
-      'isActive': true,
-    },
-    {
-      'id': 2,
-      'nama': 'Budi Santoso',
-      'email': 'budi@example.com',
-      'role': 'user',
-      'isActive': true,
-    },
-    {
-      'id': 3,
-      'nama': 'Lestari Putri',
-      'email': 'lestari@gmail.com',
-      'role': 'user',
-      'isActive': true,
-    },
-    {
-      'id': 4,
-      'nama': 'Andi Wijaya',
-      'email': 'andi@outlook.com',
-      'role': 'user',
-      'isActive': false,
-    },
-    {
-      'id': 5,
-      'nama': 'Siti Aminah',
-      'email': 'siti@company.id',
-      'role': 'user',
-      'isActive': true,
-    },
-  ];
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  List<Map<String, dynamic>> get _filtered {
-    final q = _searchController.text.toLowerCase();
-    if (q.isEmpty) return _users;
-    return _users.where((u) {
-      final nama = (u['nama'] as String).toLowerCase();
-      final email = (u['email'] as String).toLowerCase();
-      return nama.contains(q) || email.contains(q);
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AdminProvider>().loadAllUsers();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _onToggleActive(int index, Map<String, dynamic> user) {
-    final isCurrentlyActive = user['isActive'] as bool;
+  void _onSearchChanged(String value) {
+    setState(() {}); // Rebuild agar tombol clear (icon X) muncul/hilang
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(
+      const Duration(milliseconds: AppConstants.searchDebounceMs),
+      () {
+        if (mounted) {
+          context.read<AdminProvider>().searchUsers(value);
+        }
+      },
+    );
+  }
+
+  void _onToggleActive(UserModel user) {
+    final currentAdminId = context.read<AuthProvider>().currentUser?.id ?? -1;
+
+    // 1. UI Level Self Lock Protection
+    if (user.id == currentAdminId) {
+      ErrorStateWidget.showWarning(context, 'Anda tidak dapat menonaktifkan akun Anda sendiri.');
+      return;
+    }
+
+    // 2. UI Level Admin Shield
+    if (user.isAdmin) {
+      ErrorStateWidget.showWarning(context, 'Akun Administrator tidak dapat dinonaktifkan.');
+      return;
+    }
+
+    final isCurrentlyActive = user.isActive;
     final action = isCurrentlyActive ? 'nonaktifkan' : 'aktifkan';
     final actionLabel = isCurrentlyActive ? 'Nonaktifkan' : 'Aktifkan';
 
@@ -93,7 +87,7 @@ class _ManageUserScreenState extends State<ManageUserScreen> {
       builder: (ctx) => AlertDialog(
         title: Text('$actionLabel Pengguna'),
         content: Text(
-          'Yakin ingin $action akun "${user['nama']}"?\n\n'
+          'Yakin ingin $action akun "${user.nama}"?\n\n'
           '${isCurrentlyActive ? 'Pengguna tidak akan dapat login sampai diaktifkan kembali.' : 'Pengguna akan dapat login kembali.'}',
         ),
         actions: [
@@ -112,24 +106,29 @@ class _ManageUserScreenState extends State<ManageUserScreen> {
           ),
         ],
       ),
-    ).then((confirmed) {
+    ).then((confirmed) async {
       if (confirmed == true && mounted) {
-        // Phase 7: ganti dengan UserRepository.setActiveStatus(id, !isActive)
-        setState(() {
-          _users[_users.indexWhere((u) => u['id'] == user['id'])]['isActive'] =
-              !isCurrentlyActive;
-        });
-        final successMsg = isCurrentlyActive
-            ? '${user['nama']} berhasil dinonaktifkan'
-            : '${user['nama']} berhasil diaktifkan';
-        ErrorStateWidget.showSuccess(context, successMsg);
+        final provider = context.read<AdminProvider>();
+        final success = await provider.toggleUserStatus(user.id!, currentAdminId);
+        if (mounted) {
+          if (success) {
+            final successMsg = isCurrentlyActive
+                ? '${user.nama} berhasil dinonaktifkan'
+                : '${user.nama} berhasil diaktifkan';
+            ErrorStateWidget.showSuccess(context, successMsg);
+          } else if (provider.errorMessage != null) {
+            ErrorStateWidget.showError(context, provider.errorMessage!);
+          }
+        }
       }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filtered;
+    final provider = context.watch<AdminProvider>();
+    final filtered = provider.displayUsers;
+    final currentAdminId = context.select<AuthProvider, int?>((auth) => auth.currentUser?.id);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -141,12 +140,21 @@ class _ManageUserScreenState extends State<ManageUserScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
               controller: _searchController,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
                 hintText: 'Cari nama atau email...',
-                prefixIcon: Icon(Icons.search_rounded, size: 20),
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 18),
+                        onPressed: () {
+                          _searchController.clear();
+                          _onSearchChanged('');
+                        },
+                      )
+                    : null,
                 contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
             ),
           ),
@@ -168,30 +176,49 @@ class _ManageUserScreenState extends State<ManageUserScreen> {
 
           // ── User List ───────────────────────────────────────────────────
           Expanded(
-            child: filtered.isEmpty
-                ? const EmptyStateWidget(
-                    icon: Icons.group_outlined,
-                    title: 'Tidak Ada Pengguna',
-                    message: 'Tidak ditemukan pengguna yang sesuai pencarian.',
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final user = filtered[index];
-                      // Cari index asli di _users untuk toggle
-                      final originalIndex =
-                          _users.indexWhere((u) => u['id'] == user['id']);
-                      return UserListItem(
-                        nama: user['nama'] as String,
-                        email: user['email'] as String,
-                        role: user['role'] as String,
-                        isActive: user['isActive'] as bool,
-                        onToggleActive: () =>
-                            _onToggleActive(originalIndex, user),
-                      );
-                    },
-                  ),
+            child: provider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : provider.errorMessage != null && provider.users.isEmpty
+                    ? ErrorStateWidget(
+                        message: provider.errorMessage!,
+                        onRetry: () => provider.loadAllUsers(),
+                      )
+                    : filtered.isEmpty
+                        ? provider.searchQuery.isNotEmpty
+                            ? EmptyStateWidget(
+                                icon: Icons.search_off_rounded,
+                                title: 'Pengguna Tidak Ditemukan',
+                                message:
+                                    'Tidak ada pengguna yang cocok dengan kata kunci "${provider.searchQuery}".',
+                                actionLabel: 'Reset Pencarian',
+                                onAction: () {
+                                  _searchController.clear();
+                                  _onSearchChanged('');
+                                },
+                              )
+                            : const EmptyStateWidget(
+                                icon: Icons.group_outlined,
+                                title: 'Belum Ada Pengguna',
+                                message: 'Belum ada pengguna terdaftar di dalam sistem.',
+                              )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) {
+                              final user = filtered[index];
+                              final isSelf = user.id == currentAdminId;
+                              final canToggle = !user.isAdmin && !isSelf;
+                              return UserListItem(
+                                nama: user.nama,
+                                email: user.email,
+                                role: user.role,
+                                isActive: user.isActive,
+                                onToggleActive: canToggle
+                                    ? () => _onToggleActive(user)
+                                    : null,
+                              );
+                            },
+                          ),
           ),
         ],
       ),

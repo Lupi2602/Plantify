@@ -32,6 +32,11 @@ class AppConstants {
   /// Durasi splash screen dalam detik. Referensi: UI_GUIDELINE.md
   static const int splashDurationSeconds = 3;
 
+  // ─── Search Debounce ──────────────────────────────────────────────────────────
+  /// Durasi debounce pencarian global dalam milidetik.
+  /// Referensi: Phase 7 Final Pre-Implementation Revision
+  static const int searchDebounceMs = 300;
+
   // ─── Dashboard ────────────────────────────────────────────────────────────────
   /// Jumlah maksimal item pada Recent Scan di Dashboard. Referensi: UI_GUIDELINE.md
   static const int recentScanLimit = 5;
