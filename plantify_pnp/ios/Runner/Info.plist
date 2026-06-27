@@ -47,6 +47,10 @@
 			</array>
 		</dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Aplikasi Plantify.PNP membutuhkan akses kamera untuk mengambil foto tanaman secara langsung oleh Administrator.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Aplikasi Plantify.PNP membutuhkan akses galeri foto untuk memilih gambar tanaman yang akan ditambahkan ke sistem.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

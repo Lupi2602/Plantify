@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import 'package:plantify_pnp/core/constants/database_constants.dart';
+import 'package:plantify_pnp/core/utils/timestamp_helper.dart';
 
 /// Singleton helper untuk membuka dan mengelola database SQLite Plantify.PNP.
 ///
@@ -124,16 +125,21 @@ class DatabaseHelper {
 
   // ─── Seed Data ─────────────────────────────────────────────────────────────
 
-  /// Menyisipkan akun default saat database pertama kali dibuat.
+  /// Menyisipkan akun default dan data tanaman awal saat database pertama kali dibuat.
   ///
   /// Menggunakan [ConflictAlgorithm.ignore] agar aman jika dipanggil ulang.
   ///
   /// Akun default (sesuai DATABASE_SPEC.md):
   /// - Admin : admin@plantify.com / admin123
   /// - User  : user@plantify.com  / user123
+  ///
+  /// Seed Data Tanaman:
+  /// Mengikuti daftar tanaman resmi aplikasi dengan data lengkap (nama, deskripsi,
+  /// manfaat, gambar asset, dan label_model) sesuai Revisi 2 Phase 6A.
   Future<void> _seedData(Database db) async {
     final now = _currentTimestamp();
 
+    // 1. Seed Users
     await db.insert(
       DatabaseConstants.tableUsers,
       {
@@ -161,6 +167,58 @@ class DatabaseHelper {
       },
       conflictAlgorithm: ConflictAlgorithm.ignore,
     );
+
+    // 2. Seed Tanaman (Lengkap & Autentik, Tanpa Placeholder)
+    final initialPlants = [
+      {
+        DatabaseConstants.colNamaTanaman: 'Sirih Hijau',
+        DatabaseConstants.colDeskripsi:
+            'Sirih hijau (Piper betle) adalah tanaman merambat asli Asia Tenggara dari keluarga Piperaceae. Daunnya berbentuk hati dengan warna hijau mengkilap dan memiliki aroma khas yang kuat. Tanaman ini banyak dibudidayakan sebagai tanaman pekarangan dan tanaman obat tradisional yang bernilai tinggi.',
+        DatabaseConstants.colManfaat:
+            '• Bersifat antiseptik alami yang efektif melawan bakteri\n• Membantu mempercepat penyembuhan luka ringan\n• Digunakan sebagai obat kumur tradisional untuk kesehatan rongga mulut\n• Mengandung antioksidan alami untuk melindungi sel tubuh',
+        DatabaseConstants.colGambar: 'assets/images/plants/sirih_hijau.png',
+        DatabaseConstants.colLabelModel: 'sirih_hijau',
+      },
+      {
+        DatabaseConstants.colNamaTanaman: 'Talas',
+        DatabaseConstants.colDeskripsi:
+            'Talas (Colocasia esculenta) adalah tanaman umbi-umbian dari keluarga Araceae yang populer di wilayah tropis. Daunnya berukuran besar berbentuk perisai dengan permukaan kedap air. Umbi dan daun mudanya kaya akan nutrisi serat dan karbohidrat kompleks.',
+        DatabaseConstants.colManfaat:
+            '• Sumber karbohidrat kompleks dan serat pangan yang tinggi\n• Membantu menjaga kesehatan pencernaan dan mengontrol gula darah\n• Daun muda dapat diolah menjadi hidangan kuliner bergizi tinggi\n• Mengandung kalium dan magnesium untuk kesehatan jantung',
+        DatabaseConstants.colGambar: 'assets/images/plants/talas.png',
+        DatabaseConstants.colLabelModel: 'talas',
+      },
+      {
+        DatabaseConstants.colNamaTanaman: 'Nangka',
+        DatabaseConstants.colDeskripsi:
+            'Nangka (Artocarpus heterophyllus) adalah pohon buah tropis berukuran besar dari keluarga Moraceae. Daunnya tunggal, lonjong, tebal, dan berwarna hijau tua mengkilap. Buahnya merupakan salah satu buah berukuran paling besar di dunia dengan daging buah yang manis dan harum.',
+        DatabaseConstants.colManfaat:
+            '• Buah matang kaya akan vitamin A, vitamin C, dan antioksidan\n• Buah muda kaya serat dan populer sebagai bahan pangan nabati\n• Daun tua secara tradisional digunakan dalam ramuan herbal\n• Kayunya memiliki kualitas tinggi dan tahan serangan rayap',
+        DatabaseConstants.colGambar: 'assets/images/plants/nangka.png',
+        DatabaseConstants.colLabelModel: 'nangka',
+      },
+      {
+        DatabaseConstants.colNamaTanaman: 'Markisa',
+        DatabaseConstants.colDeskripsi:
+            'Markisa (Passiflora edulis) adalah tanaman buah merambat dari keluarga Passifloraceae asli daerah tropis dan subtropis. Tanaman ini tumbuh menjalar dengan sulur pembelit dan menghasilkan buah berdaging manis asam yang kaya nutrisi serta menyegarkan.',
+        DatabaseConstants.colManfaat:
+            '• Kaya akan kandungan vitamin C sebagai pendukung sistem imun tubuh\n• Mengandung serat larut alami yang baik untuk kesehatan usus\n• Ekstrak daun dan buahnya diketahui memiliki efek menenangkan (relaksan alami)\n• Kaya akan senyawa antioksidan polifenol',
+        DatabaseConstants.colGambar: 'assets/images/plants/markisa.png',
+        DatabaseConstants.colLabelModel: 'markisa',
+      },
+    ];
+
+    for (final plant in initialPlants) {
+      await db.insert(
+        DatabaseConstants.tableTanaman,
+        {
+          ...plant,
+          DatabaseConstants.colCreatedAt: now,
+          DatabaseConstants.colUpdatedAt: now,
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    }
   }
 
   // ─── Utilities ─────────────────────────────────────────────────────────────
@@ -180,8 +238,5 @@ class DatabaseHelper {
   /// Mengembalikan timestamp saat ini dalam format 'YYYY-MM-DD HH:mm:ss'.
   static String currentTimestamp() => _currentTimestamp();
 
-  static String _currentTimestamp() {
-    final now = DateTime.now();
-    return now.toIso8601String().substring(0, 19).replaceAll('T', ' ');
-  }
+  static String _currentTimestamp() => TimestampHelper.currentTimestamp();
 }

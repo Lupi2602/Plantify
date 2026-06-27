@@ -75,12 +75,6 @@ class QuickScanCard extends StatelessWidget {
               ),
             ),
 
-            // Arrow
-            const Icon(
-              Icons.arrow_forward_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
           ],
         ),
       ),

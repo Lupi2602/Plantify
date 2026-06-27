@@ -5,6 +5,9 @@ import 'package:plantify_pnp/app/app_theme.dart';
 import 'package:plantify_pnp/core/constants/app_constants.dart';
 import 'package:plantify_pnp/core/constants/route_constants.dart';
 import 'package:plantify_pnp/features/auth/providers/auth_provider.dart';
+import 'package:plantify_pnp/features/plant/providers/plant_provider.dart';
+import 'package:plantify_pnp/features/plant/repositories/plant_repository.dart';
+import 'package:plantify_pnp/features/plant/services/plant_storage_service.dart';
 
 /// Root widget aplikasi Plantify.PNP.
 ///
@@ -29,6 +32,12 @@ class PlantifyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(
+          create: (_) => PlantProvider(
+            repository: PlantRepository(),
+            storageService: PlantStorageService(),
+          )..initialize(),
+        ),
       ],
       child: MaterialApp(
         title: AppConstants.appName,

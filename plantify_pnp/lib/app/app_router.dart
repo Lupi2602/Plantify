@@ -8,6 +8,7 @@ import 'package:plantify_pnp/features/admin/screens/manage_user_screen.dart';
 import 'package:plantify_pnp/features/auth/screens/login_screen.dart';
 import 'package:plantify_pnp/features/auth/screens/register_screen.dart';
 import 'package:plantify_pnp/features/auth/screens/splash_screen.dart';
+import 'package:plantify_pnp/features/plant/models/plant_model.dart';
 import 'package:plantify_pnp/features/plant/screens/plant_detail_screen.dart';
 import 'package:plantify_pnp/features/profile/screens/edit_profile_screen.dart';
 import 'package:plantify_pnp/features/scan/screens/result_screen.dart';
@@ -80,8 +81,16 @@ class AppRouter {
         return _buildRoute(settings, const AddPlantScreen());
 
       case RouteConstants.editPlant:
-        // arguments: int? plantId (Phase 6: pre-fill dari PlantRepository)
-        return _buildRoute(settings, const EditPlantScreen());
+        final plant = settings.arguments as PlantModel?;
+        if (plant == null) {
+          return _buildRoute(
+            settings,
+            const _NotFoundScreen(
+              routeName: '${RouteConstants.editPlant} (Argumen PlantModel kosong)',
+            ),
+          );
+        }
+        return _buildRoute(settings, EditPlantScreen(plant: plant));
 
       case RouteConstants.manageUsers:
         return _buildRoute(settings, const ManageUserScreen());
